@@ -67,24 +67,26 @@ void drawLine()
     glEnd();
 
     point perp1,perp2;
+    double tmp=sqrt(v.x*v.x+v.y*v.y);
 
-    perp1.x=-v.y;
-    perp1.y=v.x;
+    perp1.x=-(v.y/tmp);
+    perp1.y=v.x/tmp;
     perp1.z=0;
 
-    perp2.x=-perp1.x;
-    perp2.y=-perp2.y;
+    perp2.x=pos.x+(step-10)*v.x;
+    perp2.y=pos.y+(step-10)*v.y;
     perp2.z=0;
 
-    int t=25;
+    int t=5;
     glColor3f(1.0, 0, 0);
     glBegin(GL_TRIANGLES);
     {
-        glVertex3f(pos.x+(step*v.x)+t*perp1.x,pos.y+(step*v.y)+t*perp1.y,0);
-        glVertex3f(pos.x+(step*v.x)+t*perp2.x,pos.y+(step*v.y)+t*perp2.y,0);
-        glVertex3f(pos.x+(step*v.x)+t*v.x,pos.y+(step*v.y)+t*v.y,0);
+        glVertex3f(pos.x+(step*v.x),pos.y+(step*v.y),0);
+        glVertex3f(t*perp1.x+perp2.x, t*perp1.y+perp2.y, 0);
+        glVertex3f(perp2.x-t*perp1.x,perp2.y-t*perp1.y,0);
     }
     glEnd();
+
 
 
 
@@ -291,7 +293,7 @@ void init()
     angle=0;
 
     pos.x=10,pos.y=10,pos.z=50;
-    v.x=.35,v.y=.26,v.z=0;
+    v.x=-.35,v.y=.26,v.z=0;
     //clear the screen
     glClearColor(0,0,0,0);
 

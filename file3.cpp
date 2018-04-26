@@ -132,10 +132,10 @@ void keyboardListener(unsigned char key, int x,int y)
         if(trian>-45)trian-=3;
         break;
     case '7':
-        if(fing1<45)fing1+=3;
+        if(fing1<90)fing1+=3;
         break;
     case '8':
-        if(fing1>-45)fing1-=3;
+        if(fing1>-90)fing1-=3;
         break;
     case '9':
         if(fing2>-90)fing2-=3;
