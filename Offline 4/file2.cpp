@@ -1,7 +1,9 @@
 #include<bits/stdc++.h>
 #include <GL/glut.h>
+#include"bitmap_image.hpp"
+#define eps 1e-4
 using namespace std;
-
+bitmap_image txt("image.bmp");
 struct point
 {
     double x,y,z;
@@ -24,7 +26,7 @@ double dot(point a, point b)
 point normalize(point a)
 {
     double ssd=sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
-    point tmp={a.x/ssd,a.y/ssd,a.z/ssd};
+    point tmp= {a.x/ssd,a.y/ssd,a.z/ssd};
     return tmp;
 }
 
@@ -78,7 +80,7 @@ public:
         //if(debug==false)cout<<"ds"<<endl;
         return -1;
     }
-    virtual point getNormal(point a, point center){}
+    //virtual point getNormal(point a, point center){}
 
     void setColor(double r, double g, double b)
     {
@@ -172,7 +174,7 @@ public:
         point normal=getNormal(intersection_point,reference_point);
         point reflection=getReflection(r.dir,normal);
 
-        for(int i=0;i<lights.size();i++)
+        for(int i=0; i<lights.size(); i++)
         {
             point light_source=lights[i];
             point light_dir;
@@ -190,13 +192,13 @@ public:
 
             Ray L(start,light_source);
             bool flag=true;
-            for(int j=0;j<objects.size();j++)
+            for(int j=0; j<objects.size(); j++)
             {
                 double t=objects[j]->getIntersectingT(L);
                 //cout<<t<<endl;
                 if(t<=0 || t>dis)continue;
                 flag=false;
-                cout<<t<<endl;
+                //cout<<t<<endl;
                 break;
             }
             if(flag==true)
@@ -229,8 +231,9 @@ public:
             far.z=intersection_point.z+reflection.z*2;
 
             Ray reflectionRay(start,far);
-            int nearest=-1;double tmin=INT_MAX;
-            for(int k=0;k<objects.size();k++)
+            int nearest=-1;
+            double tmin=INT_MAX;
+            for(int k=0; k<objects.size(); k++)
             {
                 double *dummy_color;
                 dummy_color=new double[3];
@@ -264,6 +267,237 @@ public:
     }
 };
 
+class General:public Object
+{
+public:
+
+    double A, B, C, D, E, F, G, H, I, J;
+    double length, width, height;
+    point cube_ref;
+    General(double coeff[10],double len, double wid,double hei, point cube)
+    {
+        A=coeff[0];
+        B=coeff[1];
+        C=coeff[2];
+        D=coeff[3];
+        E=coeff[4];
+        F=coeff[5];
+        G=coeff[6];
+        H=coeff[7];
+        I=coeff[8];
+        J=coeff[9];
+        length=len;
+        width=wid;
+        height=hei;
+        cube_ref=cube;
+
+    }
+
+};
+
+class Triangle:public Object
+{
+public:
+    point p,q,r,n;
+    double a,b,c,d;
+    Triangle(point x, point y, point z)
+    {
+        p=x;
+        q=y;
+        r=z;
+        point v1= {q.x-p.x,q.y-p.y,q.z-p.z};
+        point v2= {r.x-p.x,r.y-p.y,r.z-p.z};
+
+        this->a=(v1.y*v2.z)-(v1.z*v2.y);
+        this->b=(v1.z*v2.x)-(v1.x*v2.z);
+        this->c=(v1.x*v2.y)-(v1.y*v2.x);
+
+        n={a,b,c};
+        n=normalize(n);
+        a=n.x,b=n.y,c=n.z;
+
+        this->d=-(this->a*p.x)-(this->b*p.y)-(this->c*p.z);
+
+    }
+
+    void draw()
+    {
+
+        glBegin(GL_TRIANGLES);
+        glColor3f(color[0],color[1],color[2]);
+        glVertex3f(p.x,p.y,p.z);
+        glVertex3f(q.x,q.y,q.z);
+        glVertex3f(r.x,r.y,r.z);
+        glEnd();
+    }
+    point getNormal(Ray &r)
+    {
+        point df= {a,b,c};
+        //cout<<dot(df,r.dir)<<endl;
+        if(dot(df,r.dir)>0)df={-a,-b,-c};
+        //if(er==true)return df;
+        return df;
+    }
+
+    point checkTurn(point a, point b, point c)
+    {
+        double v1x=b.x-a.x;
+        double v1y=b.y-a.y;
+        double v1z=b.z-a.z;
+
+        double v2x=c.x-a.x;
+        double v2y=c.y-a.y;
+        double v2z=c.z-a.z;
+
+        point tmp;
+        tmp.x=v1y*v2z-v2y*v1z;
+        tmp.y=v1z*v2x-v2z*v1x;
+        tmp.z=v1x*v2y-v2x*v1y;
+        return tmp;
+    }
+
+    int position(point ss)
+    {
+        point i,j,k;
+        i=checkTurn(p,q,ss);
+        j=checkTurn(q,r,ss);
+        k=checkTurn(r,p,ss);
+        if(dot(i,j)>=1-eps && dot(i,k)>1-eps)return 1;
+
+        //else if(checkTurn(t.a,t.b,p)>=0 && checkTurn(t.b,t.c,p)>=0 && checkTurn(t.c,t.a,p)>=0)return 2;
+        else return -1;
+
+    }
+
+    double getIntersectingT(Ray &r)
+    {
+
+        double t= -(d+dot(n,r.start))/dot(n,r.dir);
+        //cout<<t<<endl;
+        point tch;
+        tch.x=r.start.x+r.dir.x*t;
+        tch.y=r.start.y+r.dir.y*t;
+        tch.z=r.start.z+r.dir.z*t;
+        if(position(tch)==1)return t;
+        else return -1;
+
+    }
+
+    double intersect(Ray &r, double *current_color, int level)
+    {
+        double tmp=getIntersectingT(r);
+        //cout<<tmp<<endl;
+        if(tmp<=0)return -1;
+        if(level==0)return tmp;
+        point intersection_point;
+        intersection_point.x=r.start.x+r.dir.x*tmp;
+        intersection_point.y=r.start.y+r.dir.y*tmp;
+        intersection_point.z=r.start.z+r.dir.z*tmp;
+        //cout<<intersection_point.z<<endl;
+
+
+        //cout<<rr<<" "<<g<<" "<<b<<endl;
+        current_color[0]=color[0]*co_efficients[0];
+        current_color[1]=color[1]*co_efficients[0];
+        current_color[2]=color[2]*co_efficients[0];
+        //cout<<current_color[0]<<endl;
+        point normal=getNormal(r);
+        point reflection=getReflection(r.dir,normal);
+        //cout<<current_color[0]<<" "<<current_color[1]<<" "<<current_color[2]<<endl;
+        for(int i=0; i<lights.size(); i++)
+        {
+            point light_source=lights[i];
+            point light_dir;
+            light_dir.x=light_source.x-intersection_point.x;
+            light_dir.y=light_source.y-intersection_point.y;
+            light_dir.z=light_source.z-intersection_point.z;
+            light_dir=normalize(light_dir);
+
+            point start;
+            start.x=intersection_point.x+light_dir.x*1.0;
+            start.y=intersection_point.y+light_dir.y*1.0;
+            start.z=intersection_point.z+light_dir.z*1.0;
+
+            double dis=dist(start,light_source);
+
+            Ray L(start,light_source);
+            bool flag=true;
+            for(int j=0; j<objects.size(); j++)
+            {
+                double t=objects[j]->getIntersectingT(L);
+                //cout<<t<<endl;
+                if(t<=0 || t>dis)continue;
+                flag=false;
+                //cout<<t<<endl;
+                break;
+            }
+            if(flag==true)
+            {
+
+                double lambert=dot(L.dir,normal);
+                double phong=pow(dot(r.dir,reflection),Shine);
+
+                lambert=max(lambert,0.0);
+                phong=max(phong,0.0);
+
+                current_color[0]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[1]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[2]+=lambert*co_efficients[1]+phong*co_efficients[2];
+            }
+
+
+        }
+
+        if(level<recursion)
+        {
+            point start;
+            start.x=intersection_point.x+reflection.x;
+            start.y=intersection_point.y+reflection.y;
+            start.z=intersection_point.z+reflection.z;
+
+            point far;
+            far.x=intersection_point.x+reflection.x*2;
+            far.y=intersection_point.y+reflection.y*2;
+            far.z=intersection_point.z+reflection.z*2;
+
+            Ray reflectionRay(start,far);
+            int nearest=-1;
+            double tmin=INT_MAX;
+            for(int k=0; k<objects.size(); k++)
+            {
+                double *dummy_color;
+                dummy_color=new double[3];
+                double t=objects[k]->intersect(reflectionRay,dummy_color,0);
+                //cout<<t<<endl;
+                delete dummy_color;
+                if(t<=0.000000001)continue;
+
+                if(t<tmin)
+                {
+                    tmin=t;
+                    nearest=k;
+                    //cout<<nearest<<endl;
+                }
+
+
+            }
+            if(nearest!=-1)
+            {
+                double *reflect_color;
+                reflect_color=new double[3];
+                double t=objects[nearest]->intersect(reflectionRay,reflect_color,level+1);
+
+                current_color[0]+=reflect_color[0]*co_efficients[3];
+                current_color[1]+=reflect_color[1]*co_efficients[3];
+                current_color[2]+=reflect_color[2]*co_efficients[3];
+            }
+        }
+
+        return tmp;
+    }
+
+};
+
 class Floor:public Object
 {
 public:
@@ -272,6 +506,150 @@ public:
         reference_point= {-floor_width/2,-floor_width/2,0};
         length=tile_width;
     }
+
+    point getNormal()
+    {
+        point nrm= {0,0,1};
+        return nrm;
+    }
+
+    double getIntersectingT(Ray &r)
+    {
+        point normal=getNormal();
+        return -(dot(normal,r.start))/dot(normal,r.dir);
+    }
+
+    double intersect(Ray &r, double *current_color, int level)
+    {
+        double tmp=getIntersectingT(r);
+        if(tmp<=0)return -1;
+        if(level==0)return tmp;
+        point intersection_point;
+        intersection_point.x=r.start.x+r.dir.x*tmp;
+        intersection_point.y=r.start.y+r.dir.y*tmp;
+        intersection_point.z=r.start.z+r.dir.z*tmp;
+        //cout<<intersection_point.z<<endl;
+
+
+        if(intersection_point.x<reference_point.x+eps || intersection_point.x>-reference_point.x-eps ||
+                intersection_point.y<reference_point.y+eps || intersection_point.y>-reference_point.y-eps)
+            return -1;
+        int i=intersection_point.x-reference_point.x;
+        int j=intersection_point.y-reference_point.y;
+        int k=-reference_point.y-intersection_point.y;
+        int ro=i/length;
+        int co=j/length;
+
+        if((ro+co)%2==0)
+        {
+            color[0]=1.0,color[1]=1.0,color[2]=1.0;
+        }
+        else
+        {
+            color[0]=0,color[1]=0,color[2]=0;
+        }
+        //cout<<rr<<" "<<g<<" "<<b<<endl;
+        unsigned char red,green,blue;
+
+        txt.get_pixel(i,k,red,green,blue);
+        cout<<(int)red<<" "<<(int)green<<" "<<(int)blue<<endl;
+        current_color[0]=color[0]*co_efficients[0]*red/255;
+        current_color[1]=color[1]*co_efficients[0]*green/255;
+        current_color[2]=color[2]*co_efficients[0]*blue/255;
+        point normal=getNormal();
+        point reflection=getReflection(r.dir,normal);
+        //cout<<color[0]<<endl;
+        for(int i=0; i<lights.size(); i++)
+        {
+            point light_source=lights[i];
+            point light_dir;
+            light_dir.x=light_source.x-intersection_point.x;
+            light_dir.y=light_source.y-intersection_point.y;
+            light_dir.z=light_source.z-intersection_point.z;
+            light_dir=normalize(light_dir);
+
+            point start;
+            start.x=intersection_point.x+light_dir.x*1.0;
+            start.y=intersection_point.y+light_dir.y*1.0;
+            start.z=intersection_point.z+light_dir.z*1.0;
+
+            double dis=dist(start,light_source);
+
+            Ray L(start,light_source);
+            bool flag=true;
+            for(int j=0; j<objects.size(); j++)
+            {
+                double t=objects[j]->getIntersectingT(L);
+                //cout<<t<<endl;
+                if(t<=0 || t>dis)continue;
+                flag=false;
+                //cout<<t<<endl;
+                break;
+            }
+            if(flag==true)
+            {
+
+                double lambert=dot(L.dir,normal);
+                double phong=pow(dot(r.dir,reflection),Shine);
+
+                lambert=max(lambert,0.0);
+                phong=max(phong,0.0);
+
+                current_color[0]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[1]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[2]+=lambert*co_efficients[1]+phong*co_efficients[2];
+            }
+
+
+        }
+
+        if(level<recursion)
+        {
+            point start;
+            start.x=intersection_point.x+reflection.x;
+            start.y=intersection_point.y+reflection.y;
+            start.z=intersection_point.z+reflection.z;
+
+            point far;
+            far.x=intersection_point.x+reflection.x*2;
+            far.y=intersection_point.y+reflection.y*2;
+            far.z=intersection_point.z+reflection.z*2;
+
+            Ray reflectionRay(start,far);
+            int nearest=-1;
+            double tmin=INT_MAX;
+            for(int k=0; k<objects.size(); k++)
+            {
+                double *dummy_color;
+                dummy_color=new double[3];
+                double t=objects[k]->intersect(reflectionRay,dummy_color,0);
+                //cout<<t<<endl;
+                delete dummy_color;
+                if(t<=0.000000001)continue;
+
+                if(t<tmin)
+                {
+                    tmin=t;
+                    nearest=k;
+                    //cout<<nearest<<endl;
+                }
+
+
+            }
+            if(nearest!=-1)
+            {
+                double *reflect_color;
+                reflect_color=new double[3];
+                double t=objects[nearest]->intersect(reflectionRay,reflect_color,level+1);
+
+                current_color[0]+=reflect_color[0]*co_efficients[3];
+                current_color[1]+=reflect_color[1]*co_efficients[3];
+                current_color[2]+=reflect_color[2]*co_efficients[3];
+            }
+        }
+
+        return tmp;
+    }
     void draw()
     {
         glPushMatrix();
@@ -279,7 +657,7 @@ public:
             glScalef(1,1,.001);
         }
         int i=reference_point.x;
-        int rr=1,gg=1,bb=1;
+        int rr=0,gg=0,bb=0;
         while(i<-reference_point.x)
         {
             rr=1-rr,gg=1-gg,bb=1-bb;

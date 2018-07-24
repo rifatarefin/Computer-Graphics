@@ -2,8 +2,8 @@
 #include<stdlib.h>
 #include<math.h>
 #include"file2.cpp"
-#include"bitmap_image.hpp"
 #include <GL/glut.h>
+ifstream fin("scene.txt");
 
 
 //#include <GL/glx.h>    /* this includes the necessary X headers */
@@ -248,10 +248,10 @@ void capture()
     double du=(double)window_width/(double)image_width;
     double dv=(double)window_height/(double)image_width;
 
-    for(int i=0;i<image_width;i++)
+    for(int i=0; i<image_width; i++)
     {
 
-        for(int j=0;j<image_width;j++)
+        for(int j=0; j<image_width; j++)
         {
             point corner;
             corner.x=top_left.x+(j*du*right_v.x)-(i*dv*upp.x);
@@ -259,15 +259,16 @@ void capture()
             corner.z=top_left.z+(j*du*right_v.z)-(i*dv*upp.z);
             //cout<<corner.x<<" "<<corner.y<<" "<<corner.z<<endl;
             Ray ray(pos,corner);
-            int nearest=-1;double tmin=INT_MAX;
-            for(int k=0;k<objects.size();k++)
+            int nearest=-1;
+            double tmin=INT_MAX;
+            for(int k=0; k<objects.size(); k++)
             {
                 double *dummy_color;
                 dummy_color=new double[3];
                 double t=objects[k]->intersect(ray,dummy_color,0);
 
                 delete dummy_color;
-                if(t<=0.000000001)continue;
+                if(t<=0.0001)continue;
 
                 if(t<tmin)
                 {
@@ -293,6 +294,7 @@ void capture()
 
     image.save_image("1.bmp");
     image.clear();
+    cout<<"saved"<<endl;
 }
 
 void keyboardListener(unsigned char key, int x,int y)
@@ -400,6 +402,75 @@ void mouseListener(int button, int state, int x, int y) 	//x, y is the x-y of th
     }
 }
 
+void loadFileData()
+{
+    int num=10;
+    fin>>recursion;
+    fin>>image_width;
+    fin>>num;
+
+    double rad,r,g,b,i,j,k,l;
+    int sh;
+    Object *temp;
+    string s;
+    for(int v=0; v<num; v++)
+    {
+        fin>>s;
+        if(s=="sphere")
+        {
+            point refe;
+            fin>>refe.x>>refe.y>>refe.z;
+
+            fin>>rad;
+            temp=new Sphere(refe,rad);
+        }
+
+        else if(s=="triangle")
+        {
+            point a,b,c;
+            fin>>a.x>>a.y>>a.z;
+            fin>>b.x>>b.y>>b.z;
+            fin>>c.x>>c.y>>c.z;
+            temp=new Triangle(a,b,c);
+        }
+
+        else if(s=="general")
+        {
+            double A, B, C, D, E, F, G, H, I, J;
+            fin>>A>>B>>C>>D>>E>>F>>G>>H>>I>>J;
+            double co[10]={A, B, C, D, E, F, G, H, I, J};
+            point cube_ref;
+            fin>>cube_ref.x>>cube_ref.y>>cube_ref.z;
+            double length, width, height;
+            fin>>length>>width>>height;
+            temp=new General(co,length,width,height,cube_ref);
+
+        }
+        fin>>r>>g>>b;
+        fin>>i>>j>>k>>l;
+        fin>>sh;
+
+        temp->setColor(r,g,b);
+        temp->setCoEfficients(i,j,k,l);
+        temp->setShine(sh);
+        objects.push_back(temp);
+    }
+
+    temp=new Floor(1000,20);
+    temp->setCoEfficients(0.4,0.2,0.2,0.2);
+    temp->setShine(1);
+    objects.push_back(temp);
+
+    fin>>num;
+    for(int v=0;v<num;v++)
+    {
+        point llt;
+        fin>>llt.x>>llt.y>>llt.z;
+        lights.push_back(llt);
+
+    }
+    //lights.push_back({-50,50,60});
+}
 void loadTestData()
 {
     Object *temp=new Sphere({0,0,10},10);
@@ -410,11 +481,19 @@ void loadTestData()
     lights.push_back({-50,50,60});
 
     temp=new Floor(1000,20);
+    temp->setCoEfficients(0.4,0.2,0.2,0.2);
+    temp->setShine(1);
     objects.push_back(temp);
 
     temp=new Sphere({-25,25,35},20);
     temp->setColor(0,1,0);
     temp->setCoEfficients(0.4,0.2,0.2,0.2);
+    temp->setShine(1);
+    objects.push_back(temp);
+
+    temp=new Triangle({30,60,0}, {50,30,0}, {50,45,50});
+    temp->setColor(1.0,0.0,0.0);
+    temp->setCoEfficients(0.4,0.2,0.1,0.3);
     temp->setShine(1);
     objects.push_back(temp);
 
@@ -531,7 +610,8 @@ void init()
 
 int main(int argc, char **argv)
 {
-    loadTestData();
+    loadFileData();
+    //loadTestData();
     //cout<<objects.size()<<endl;
     glutInit(&argc,argv);
     glutInitWindowSize(500, 500);
