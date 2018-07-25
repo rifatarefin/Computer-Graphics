@@ -149,7 +149,7 @@ public:
         double t2=(-b-sqrt(d))/2;
 
         double tmp=min(t1,t2);
-        if(tmp<0)
+        if(tmp<=0)
         {
             tmp=max(t1,t2);
         }
@@ -203,9 +203,15 @@ public:
             }
             if(flag==true)
             {
+                Ray incident(light_source,intersection_point);
+                point light_reflection=getReflection(incident.dir,normal);
+                point to_eye;
+                to_eye.x=-r.dir.x;
+                to_eye.y=-r.dir.y;
+                to_eye.z=-r.dir.z;
 
                 double lambert=dot(L.dir,normal);
-                double phong=pow(dot(r.dir,reflection),Shine);
+                double phong=pow(dot(to_eye,light_reflection),Shine);
 
                 lambert=max(lambert,0.0);
                 phong=max(phong,0.0);
@@ -293,6 +299,200 @@ public:
 
     }
 
+    point getNormal(point a)
+    {
+        point tmp;
+        tmp.x=2*A*a.x + D*a.y + E*a.z + G;
+        tmp.y=2*B*a.y + D*a.x + F*a.z + H;
+        tmp.z=2*C*a.z + E*a.x + F*a.y + I;
+        return normalize(tmp);
+    }
+
+    double getIntersectingT(Ray &r)
+    {
+        point r0=r.start;
+        point rd=r.dir;
+
+        double a=A*rd.x*rd.x + B*rd.y*rd.y + C*rd.z*rd.z + D*rd.x*rd.y + E*rd.x*rd.z + F*rd.y*rd.z;
+        double b=2*A*r0.x*rd.x + 2*B*r0.y*rd.y + 2*C*r0.z*rd.z + D*(r0.x*rd.y + r0.y*rd.x) + E*(r0.x*rd.z + r0.z*rd.x) +
+                 F*(r0.y*rd.z + rd.y*r0.z) + G*rd.x + H*rd.y + I*rd.z;
+        double c=A*r0.x*r0.x + B*r0.y*r0.y + C*r0.z*r0.z + D*r0.x*r0.y + E*r0.x*r0.z + F*r0.y*r0.z + G*r0.x + H*r0.y + I*r0.z + J;
+        double tmp,d;
+        if(a==0)
+        {
+            tmp=(-c)/b;
+            return tmp;
+        }
+        d=(b*b)-(4*a*c);
+        if(d<0)return -1;
+
+        double t1=(-b+sqrt(d))/2*a;
+        double t2=(-b-sqrt(d))/2*a;
+
+        point intersect_point1, intersect_point2;
+        intersect_point1.x=r.start.x+(r.dir.x*t1);
+        intersect_point1.y=r.start.y+(r.dir.y*t1);
+        intersect_point1.z=r.start.z+(r.dir.z*t1);
+
+        intersect_point2.x=r.start.x+(r.dir.x*t2);
+        intersect_point2.y=r.start.y+(r.dir.y*t2);
+        intersect_point2.z=r.start.z+(r.dir.z*t2);
+
+        double xMin = cube_ref.x;
+        double xMax = xMin + length;
+
+        double yMin = cube_ref.y;
+        double yMax = yMin + width;
+
+        double zMin = cube_ref.z;
+        double zMax = zMin + height;
+
+        bool f1 = (length > 0 && (xMin > intersect_point1.x || intersect_point1.x > xMax) ||
+                      width > 0 && (yMin > intersect_point1.y || intersect_point1.y > yMax) ||
+                      height > 0 && (zMin > intersect_point1.z || intersect_point1.z > zMax));
+
+        bool f2 = (length > 0 && (xMin > intersect_point2.x || intersect_point2.x > xMax) ||
+                      width > 0 && (yMin > intersect_point2.y || intersect_point2.y > yMax) ||
+                      height > 0 && (zMin > intersect_point2.z || intersect_point2.z > zMax));
+
+        if (f1 && f2)
+        {
+            return -1;
+        }
+        else if (f1)
+        {
+            return t2;
+        }
+        else if (f2)
+        {
+            return t1;
+        }
+        else
+        {
+            tmp=min(t1,t2);
+            return tmp;
+        }
+
+
+
+
+    }
+
+    double intersect(Ray &r, double *current_color, int level)
+    {
+        double tmp=getIntersectingT(r);
+        if(tmp<=0)return -1;
+        if(level==0)return tmp;
+        current_color[0]=color[0]*co_efficients[0];
+        current_color[1]=color[1]*co_efficients[0];
+        current_color[2]=color[2]*co_efficients[0];
+
+        point intersection_point;
+        intersection_point.x=r.start.x+r.dir.x*tmp;
+        intersection_point.y=r.start.y+r.dir.y*tmp;
+        intersection_point.z=r.start.z+r.dir.z*tmp;
+
+        point normal=getNormal(intersection_point);
+        point reflection=getReflection(r.dir,normal);
+
+        for(int i=0; i<lights.size(); i++)
+        {
+            point light_source=lights[i];
+            point light_dir;
+            light_dir.x=light_source.x-intersection_point.x;
+            light_dir.y=light_source.y-intersection_point.y;
+            light_dir.z=light_source.z-intersection_point.z;
+            light_dir=normalize(light_dir);
+
+            point start;
+            start.x=intersection_point.x+light_dir.x*1.0;
+            start.y=intersection_point.y+light_dir.y*1.0;
+            start.z=intersection_point.z+light_dir.z*1.0;
+
+            double dis=dist(start,light_source);
+
+            Ray L(start,light_source);
+            bool flag=true;
+            for(int j=0; j<objects.size(); j++)
+            {
+                double t=objects[j]->getIntersectingT(L);
+                //cout<<t<<endl;
+                if(t<=0 || t>dis)continue;
+                flag=false;
+                //cout<<t<<endl;
+                break;
+            }
+            if(flag==true)
+            {
+                Ray incident(light_source,intersection_point);
+                point light_reflection=getReflection(incident.dir,normal);
+                point to_eye;
+                to_eye.x=-r.dir.x;
+                to_eye.y=-r.dir.y;
+                to_eye.z=-r.dir.z;
+
+                double lambert=dot(L.dir,normal);
+                double phong=pow(dot(to_eye,light_reflection),Shine);
+
+                lambert=max(lambert,0.0);
+                phong=max(phong,0.0);
+
+                current_color[0]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[1]+=lambert*co_efficients[1]+phong*co_efficients[2];
+                current_color[2]+=lambert*co_efficients[1]+phong*co_efficients[2];
+            }
+
+
+        }
+
+        if(level<recursion)
+        {
+            point start;
+            start.x=intersection_point.x+reflection.x;
+            start.y=intersection_point.y+reflection.y;
+            start.z=intersection_point.z+reflection.z;
+
+            point far;
+            far.x=intersection_point.x+reflection.x*2;
+            far.y=intersection_point.y+reflection.y*2;
+            far.z=intersection_point.z+reflection.z*2;
+
+            Ray reflectionRay(start,far);
+            int nearest=-1;
+            double tmin=INT_MAX;
+            for(int k=0; k<objects.size(); k++)
+            {
+                double *dummy_color;
+                dummy_color=new double[3];
+                double t=objects[k]->intersect(reflectionRay,dummy_color,0);
+                //cout<<t<<endl;
+                delete dummy_color;
+                if(t<=0.000000001)continue;
+
+                if(t<tmin)
+                {
+                    tmin=t;
+                    nearest=k;
+                    //cout<<nearest<<endl;
+                }
+
+
+            }
+            if(nearest!=-1)
+            {
+                double *reflect_color;
+                reflect_color=new double[3];
+                double t=objects[nearest]->intersect(reflectionRay,reflect_color,level+1);
+
+                current_color[0]+=reflect_color[0]*co_efficients[3];
+                current_color[1]+=reflect_color[1]*co_efficients[3];
+                current_color[2]+=reflect_color[2]*co_efficients[3];
+            }
+        }
+        cout<<current_color[0]<<" "<<current_color[1]<<" "<<current_color[2]<<endl;
+        return tmp;
+    }
+
 };
 
 class Triangle:public Object
@@ -312,7 +512,7 @@ public:
         this->b=(v1.z*v2.x)-(v1.x*v2.z);
         this->c=(v1.x*v2.y)-(v1.y*v2.x);
 
-        n={a,b,c};
+        n= {a,b,c};
         n=normalize(n);
         a=n.x,b=n.y,c=n.z;
 
@@ -334,7 +534,7 @@ public:
     {
         point df= {a,b,c};
         //cout<<dot(df,r.dir)<<endl;
-        if(dot(df,r.dir)>0)df={-a,-b,-c};
+        if(dot(df,r.dir)>0)df= {-a,-b,-c};
         //if(er==true)return df;
         return df;
     }
@@ -434,9 +634,15 @@ public:
             if(flag==true)
             {
 
-                double lambert=dot(L.dir,normal);
-                double phong=pow(dot(r.dir,reflection),Shine);
+                Ray incident(light_source,intersection_point);
+                point light_reflection=getReflection(incident.dir,normal);
+                point to_eye;
+                to_eye.x=-r.dir.x;
+                to_eye.y=-r.dir.y;
+                to_eye.z=-r.dir.z;
 
+                double lambert=dot(L.dir,normal);
+                double phong=pow(dot(to_eye,light_reflection),Shine);
                 lambert=max(lambert,0.0);
                 phong=max(phong,0.0);
 
@@ -552,7 +758,7 @@ public:
         unsigned char red,green,blue;
 
         txt.get_pixel(i,k,red,green,blue);
-        cout<<(int)red<<" "<<(int)green<<" "<<(int)blue<<endl;
+        //cout<<(int)red<<" "<<(int)green<<" "<<(int)blue<<endl;
         current_color[0]=color[0]*co_efficients[0]*red/255;
         current_color[1]=color[1]*co_efficients[0]*green/255;
         current_color[2]=color[2]*co_efficients[0]*blue/255;
@@ -589,8 +795,15 @@ public:
             if(flag==true)
             {
 
+                Ray incident(light_source,intersection_point);
+                point light_reflection=getReflection(incident.dir,normal);
+                point to_eye;
+                to_eye.x=-r.dir.x;
+                to_eye.y=-r.dir.y;
+                to_eye.z=-r.dir.z;
+
                 double lambert=dot(L.dir,normal);
-                double phong=pow(dot(r.dir,reflection),Shine);
+                double phong=pow(dot(to_eye,light_reflection),Shine);
 
                 lambert=max(lambert,0.0);
                 phong=max(phong,0.0);
