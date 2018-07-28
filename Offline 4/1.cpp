@@ -268,7 +268,7 @@ void capture()
                 double t=objects[k]->intersect(ray,dummy_color,0);
 
                 delete dummy_color;
-                if(t<=0.0001)continue;
+                if(t<=eps)continue;
 
                 if(t<tmin)
                 {
